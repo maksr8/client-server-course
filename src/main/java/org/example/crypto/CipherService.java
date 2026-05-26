@@ -12,7 +12,7 @@ import java.security.*;
 public class CipherService {
     public static final int IV_LENGTH = 12;
 
-    public static byte[] encryptMessage(String message, String secretPassword) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+    public static byte[] encryptMessage(byte[] messagePayload, String secretPassword) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         SecretKeySpec secretKey = new SecretKeySpec(generateSHA256FromPassword(secretPassword), "AES");
         byte[] iv = new byte[IV_LENGTH];
@@ -20,7 +20,7 @@ public class CipherService {
         secureRandom.nextBytes(iv);
         GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, gcmParameterSpec);
-        byte[] encryptedMessage = cipher.doFinal(message.getBytes(StandardCharsets.UTF_8));
+        byte[] encryptedMessage = cipher.doFinal(messagePayload);
         byte[] combinedIvAndCipherText = new byte[iv.length + encryptedMessage.length];
         System.arraycopy(iv, 0, combinedIvAndCipherText, 0, iv.length);
         System.arraycopy(encryptedMessage, 0, combinedIvAndCipherText, iv.length, encryptedMessage.length);
@@ -28,19 +28,17 @@ public class CipherService {
         return combinedIvAndCipherText;
     }
 
-    public static String decryptMessage(byte[] encryptedMessage, int messageLength, String secretPassword) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    public static byte[] decryptMessage(byte[] encryptedMessage, String secretPassword) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         SecretKeySpec secretKey = new SecretKeySpec(generateSHA256FromPassword(secretPassword), "AES");
         byte[] iv = new byte[IV_LENGTH];
-        byte[] cipherBytes = new byte[messageLength - IV_LENGTH];
+        byte[] cipherBytes = new byte[encryptedMessage.length - IV_LENGTH];
         System.arraycopy(encryptedMessage, 0, iv, 0, iv.length);
-        System.arraycopy(encryptedMessage, iv.length, cipherBytes, 0, messageLength - IV_LENGTH);
+        System.arraycopy(encryptedMessage, iv.length, cipherBytes, 0, cipherBytes.length);
         GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
         cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmParameterSpec);
 
-        byte[] decryptedBytes = cipher.doFinal(cipherBytes);
-
-        return new String(decryptedBytes, StandardCharsets.UTF_8);
+        return cipher.doFinal(cipherBytes);
     }
 
     public static byte[] generateSHA256FromPassword(String password) throws NoSuchAlgorithmException {
