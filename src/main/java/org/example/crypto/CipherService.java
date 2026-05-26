@@ -1,4 +1,4 @@
-package org.example;
+package org.example.crypto;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;

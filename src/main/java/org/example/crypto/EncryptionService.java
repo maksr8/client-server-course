@@ -1,18 +1,13 @@
-package org.example;
+package org.example.crypto;
 
 import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.Arrays;
 
-import static org.example.CipherService.decryptMessage;
-import static org.example.CipherService.encryptMessage;
+import static org.example.crypto.CipherService.decryptMessage;
+import static org.example.crypto.CipherService.encryptMessage;
 
 public class EncryptionService {
     private static final byte MESSAGE_PACKAGE_START_BYTE = 0x13;
