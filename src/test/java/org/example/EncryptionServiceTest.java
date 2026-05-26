@@ -1,6 +1,8 @@
 package org.example;
 
 import org.assertj.core.api.Assertions;
+import org.example.crypto.EncryptionService;
+import org.example.crypto.Message;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.AEADBadTagException;
