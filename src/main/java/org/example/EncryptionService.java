@@ -11,9 +11,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Arrays;
 
+import static org.example.CipherService.decryptMessage;
+import static org.example.CipherService.encryptMessage;
+
 public class EncryptionService {
     private static final byte MESSAGE_PACKAGE_START_BYTE = 0x13;
-    public static final int IV_LENGTH = 12;
 
     public byte[] encrypt(Message message, String secretPassword) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
 
@@ -80,40 +82,4 @@ public class EncryptionService {
         return new Message(clientAppNumber, messageID, commandType, userID, messageString);
     }
 
-
-    private byte[] encryptMessage(String message, String secretPassword) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        SecretKeySpec secretKey = new SecretKeySpec(generateSHA256FromPassword(secretPassword), "AES");
-        byte[] iv = new byte[IV_LENGTH];
-        SecureRandom secureRandom = new SecureRandom();
-        secureRandom.nextBytes(iv);
-        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, gcmParameterSpec);
-        byte[] encryptedMessage = cipher.doFinal(message.getBytes(StandardCharsets.UTF_8));
-        byte[] combinedIvAndCipherText = new byte[iv.length + encryptedMessage.length];
-        System.arraycopy(iv, 0, combinedIvAndCipherText, 0, iv.length);
-        System.arraycopy(encryptedMessage, 0, combinedIvAndCipherText, iv.length, encryptedMessage.length);
-
-        return combinedIvAndCipherText;
-    }
-
-    private String decryptMessage(byte[] encryptedMessage, int messageLength, String secretPassword) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        SecretKeySpec secretKey = new SecretKeySpec(generateSHA256FromPassword(secretPassword), "AES");
-        byte[] iv = new byte[IV_LENGTH];
-        byte[] cipherBytes = new byte[messageLength - IV_LENGTH];
-        System.arraycopy(encryptedMessage, 0, iv, 0, iv.length);
-        System.arraycopy(encryptedMessage, iv.length, cipherBytes, 0, messageLength - IV_LENGTH);
-        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmParameterSpec);
-
-        byte[] decryptedBytes = cipher.doFinal(cipherBytes);
-
-        return new String(decryptedBytes, StandardCharsets.UTF_8);
-    }
-
-    public byte[] generateSHA256FromPassword(String password) throws NoSuchAlgorithmException {
-        MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-        return sha256.digest(password.getBytes(StandardCharsets.UTF_8));
-    }
 }
