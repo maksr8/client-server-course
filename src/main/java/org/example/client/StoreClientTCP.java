@@ -63,6 +63,7 @@ public class StoreClientTCP {
         if (socket == null || socket.isClosed()) {
             System.out.println("TCP Client: Connecting to server...");
             socket = new Socket(serverIp, port);
+            socket.setSoTimeout(3000);
             out = new DataOutputStream(socket.getOutputStream());
             in = new DataInputStream(socket.getInputStream());
         }

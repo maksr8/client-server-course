@@ -3,6 +3,7 @@ package org.example.network;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 
@@ -20,21 +21,25 @@ public class ReceiverUDP implements Receiver {
     @Override
     public void receiveMessage() {
         try (DatagramSocket socket = new DatagramSocket(port)) {
+            socket.setSoTimeout(500);
             System.out.println("UDP Server started on port " + port);
             byte[] buffer = new byte[4096];
             while (!Thread.currentThread().isInterrupted()) {
-                DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
-                socket.receive(datagram);
-                byte[] packetData = Arrays.copyOf(datagram.getData(), datagram.getLength());
-                if (packetData.length < 16 || packetData[0] != 0x13) {
-                    System.err.println("UDP: Invalid packet dropped from " + datagram.getSocketAddress());
-                    continue;
+                try {
+                    DatagramPacket datagram = new DatagramPacket(buffer, buffer.length);
+                    socket.receive(datagram);
+                    byte[] packetData = Arrays.copyOf(datagram.getData(), datagram.getLength());
+                    if (packetData.length < 16 || packetData[0] != 0x13) {
+                        System.err.println("UDP: Invalid packet dropped from " + datagram.getSocketAddress());
+                        continue;
+                    }
+                    byte clientId = packetData[1];
+                    SocketAddress clientAddress = datagram.getSocketAddress();
+                    ClientSessionUDP session = new ClientSessionUDP(socket, clientAddress);
+                    registry.register(clientId, session);
+                    queueToDecrypt.put(packetData);
+                } catch (SocketTimeoutException ignored) {
                 }
-                byte clientId = packetData[1];
-                SocketAddress clientAddress = datagram.getSocketAddress();
-                ClientSessionUDP session = new ClientSessionUDP(socket, clientAddress);
-                registry.register(clientId, session);
-                queueToDecrypt.put(packetData);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

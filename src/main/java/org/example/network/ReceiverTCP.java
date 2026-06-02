@@ -2,6 +2,7 @@ package org.example.network;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 
@@ -21,12 +22,16 @@ public class ReceiverTCP implements Receiver {
     @Override
     public void receiveMessage() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
+            serverSocket.setSoTimeout(500);
             System.out.println("TCP Server started on port " + port);
             while (!Thread.currentThread().isInterrupted()) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("TCP: New connection from " + clientSocket.getRemoteSocketAddress());
-                ClientSessionTCP session = new ClientSessionTCP(clientSocket, registry, queueToDecrypt);
-                executor.submit(session::listen);
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    System.out.println("TCP: New connection from " + clientSocket.getRemoteSocketAddress());
+                    ClientSessionTCP session = new ClientSessionTCP(clientSocket, registry, queueToDecrypt);
+                    executor.submit(session::listen);
+                } catch (SocketTimeoutException ignored) {
+                }
             }
         } catch (Exception e) {
             if (!Thread.currentThread().isInterrupted()) {
