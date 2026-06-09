@@ -1,5 +1,7 @@
 package org.example.crypto;
 
+import org.example.dto.Message;
+
 import java.util.concurrent.BlockingQueue;
 
 public class Decryptor {

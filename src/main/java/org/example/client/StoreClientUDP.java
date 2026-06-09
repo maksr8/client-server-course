@@ -1,7 +1,7 @@
 package org.example.client;
 
 import org.example.crypto.EncryptionService;
-import org.example.crypto.Message;
+import org.example.dto.Message;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;

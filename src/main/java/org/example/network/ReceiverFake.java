@@ -1,7 +1,7 @@
 package org.example.network;
 
 import org.example.crypto.EncryptionService;
-import org.example.crypto.Message;
+import org.example.dto.Message;
 
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;

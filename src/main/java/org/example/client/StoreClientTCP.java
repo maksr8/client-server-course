@@ -1,7 +1,7 @@
 package org.example.client;
 
 import org.example.crypto.EncryptionService;
-import org.example.crypto.Message;
+import org.example.dto.Message;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
