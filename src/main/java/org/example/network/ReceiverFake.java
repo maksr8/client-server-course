@@ -47,7 +47,7 @@ public class ReceiverFake implements Receiver {
             payload = String.valueOf(productId);
         } else {
             int amount = random.nextInt(10) + 1;
-            payload = productId + ":" + amount;
+            payload = "{\"id\":" + productId + ", \"amount\":" + amount + "}";
         }
 
         Message message = new Message((byte) 0x01, messageIDCounter++, commandType, userId, payload);
