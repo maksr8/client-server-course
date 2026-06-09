@@ -1,20 +1,24 @@
 package org.example.processor;
 
-import org.example.crypto.Message;
+import org.example.dto.ItemFilter;
+import org.example.dto.Message;
+import org.example.model.Item;
+import org.example.service.ItemService;
+import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Processor {
     private final BlockingQueue<Message> queueToProcess;
     private final BlockingQueue<Message> queueToEncrypt;
-    private final ConcurrentMap<Integer, AtomicInteger> storage;
+    private final ItemService itemService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public Processor(BlockingQueue<Message> queueToProcess, BlockingQueue<Message> queueToEncrypt, ConcurrentMap<Integer, AtomicInteger> storage) {
+    public Processor(BlockingQueue<Message> queueToProcess, BlockingQueue<Message> queueToEncrypt, ItemService itemService) {
         this.queueToProcess = queueToProcess;
         this.queueToEncrypt = queueToEncrypt;
-        this.storage = storage;
+        this.itemService = itemService;
     }
 
     public void processMessages() {
@@ -34,37 +38,76 @@ public class Processor {
 
     private Message processOneMessage(Message message) {
         int command = message.commandType();
-        int userId = message.userID();
         String payload = message.messageString();
         String responseText;
-        int productId;
-        
-        try {
-            if (command == 1) {
-                productId = Integer.parseInt(payload);
-                AtomicInteger stock = storage.get(productId);
-                int current = (stock != null) ? stock.get() : 0;
-                responseText = "Stock for product [" + productId + "]: " + current;
-            } else if (command == 2 || command == 3) {
-                String[] parts = payload.split(":");
-                productId = Integer.parseInt(parts[0]);
-                int amount = Integer.parseInt(parts[1]);
 
-                storage.putIfAbsent(productId, new AtomicInteger(0));
-                if (command == 2) {
-                    int afterReduce = storage.get(productId).addAndGet(-amount);
-                    responseText = "Reduced " + amount + ". New stock [" + productId + "]: " + afterReduce;
-                } else {
-                    int afterAdd = storage.get(productId).addAndGet(amount);
-                    responseText = "Added " + amount + ". New stock [" + productId + "]: " + afterAdd;
-                }
-            } else {
-                responseText = "Unknown command: " + command;
-            }
-        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
-            responseText = "Invalid payload format: " + payload;
+        try {
+            responseText = switch (command) {
+                case 1 -> handleGetItem(payload);
+                case 2 -> handleReduceStock(payload);
+                case 3 -> handleAddStock(payload);
+                case 4 -> handleCreateItem(payload);
+                case 5 -> handleUpdateItem(payload);
+                case 6 -> handleDeleteItem(payload);
+                case 7 -> handleSearchItems(payload);
+                default -> "Error: Unknown command " + command;
+            };
+        } catch (Exception e) {
+            responseText = "Error processing command [" + command + "]: " + e.getMessage();
         }
 
-        return new Message(message.clientAppNumber(), message.messageID(), 0, userId, responseText);
+        return new Message(message.clientAppNumber(), message.messageID(), 0, message.userID(), responseText);
+    }
+
+    private String handleGetItem(String payload) throws Exception {
+        int id = payload.trim().startsWith("{")
+                ? objectMapper.readTree(payload).get("id").asInt()
+                : Integer.parseInt(payload.trim());
+
+        Item item = itemService.getItem(id);
+        return objectMapper.writeValueAsString(item);
+    }
+
+    private String handleReduceStock(String payload) throws Exception {
+        var jsonNode = objectMapper.readTree(payload);
+        int id = jsonNode.get("id").asInt();
+        int amount = jsonNode.get("amount").asInt();
+        itemService.reduceStock(id, amount);
+        return "Reduced " + amount + " quantity for item with ID: " + id;
+    }
+
+    private String handleAddStock(String payload) throws Exception {
+        var jsonNode = objectMapper.readTree(payload);
+        int id = jsonNode.get("id").asInt();
+        int amount = jsonNode.get("amount").asInt();
+        itemService.addStock(id, amount);
+        return "Added " + amount + " quantity for item with ID: " + id;
+    }
+
+    private String handleCreateItem(String payload) throws Exception {
+        Item newItem = objectMapper.readValue(payload, Item.class);
+        int generatedId = itemService.createItem(newItem);
+        return "Item created successfully with ID: " + generatedId;
+    }
+
+    private String handleUpdateItem(String payload) throws Exception {
+        Item updateData = objectMapper.readValue(payload, Item.class);
+        itemService.updateItem(updateData);
+        return "Item updated successfully for ID: " + updateData.getId();
+    }
+
+    private String handleDeleteItem(String payload) throws Exception {
+        int id = payload.trim().startsWith("{")
+                ? objectMapper.readTree(payload).get("id").asInt()
+                : Integer.parseInt(payload.trim());
+
+        itemService.deleteItem(id);
+        return "Item deleted successfully for ID: " + id;
+    }
+
+    private String handleSearchItems(String payload) throws Exception {
+        ItemFilter filter = objectMapper.readValue(payload, ItemFilter.class);
+        List<Item> results = itemService.searchItems(filter);
+        return objectMapper.writeValueAsString(results);
     }
 }
