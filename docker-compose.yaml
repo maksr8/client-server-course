@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:18.3-alpine
+    container_name: library_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: cs_storage_db
+    volumes:
+      - pg-data:/var/lib/postgresql
+
+volumes:
+  pg-data:
