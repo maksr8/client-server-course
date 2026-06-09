@@ -6,35 +6,50 @@ import org.example.client.StoreClientUDP;
 import org.example.crypto.Decryptor;
 import org.example.crypto.EncryptionService;
 import org.example.crypto.Encryptor;
-import org.example.crypto.Message;
+import org.example.dto.Message;
+import org.example.model.Item;
 import org.example.network.ConnectionRegistry;
 import org.example.network.NetworkSender;
 import org.example.network.ReceiverTCP;
 import org.example.network.ReceiverUDP;
 import org.example.processor.Processor;
+import org.example.repository.ItemRepository;
+import org.example.service.ItemService;
+import org.example.service.ItemServiceImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-class NetworkTest {
+class NetworkTest extends BasePostgresqlTest{
     private static final String SERVER_IP = "localhost";
     private static final int TCP_PORT = 8081;
     private static final int UDP_PORT = 8082;
     private static final String PASSWORD = "My SUPER secret cybersecure password! cyberops analyst!";
     
     private ExecutorService serverExecutor;
-    private ConcurrentMap<Integer, AtomicInteger> storage;
     private EncryptionService encryptionService;
+    private ItemRepository itemRepository;
+    private ItemService itemService;
 
     @BeforeEach
-    void startServer() {
+    void startServer() throws SQLException {
         encryptionService = new EncryptionService();
-        storage = new ConcurrentHashMap<>();
-        storage.put(1, new AtomicInteger(100));
-        storage.put(2, new AtomicInteger(500));
+        itemRepository = new ItemRepository(connectionProvider);
+        itemService = new ItemServiceImpl(itemRepository);
+        try (Connection conn = connectionProvider.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("TRUNCATE TABLE items RESTART IDENTITY");
+        }
+        itemRepository.create(new Item(null, "Item1", "Category", 10.0, 100));
+        itemRepository.create(new Item(null, "Item2", "Category", 20.0, 500));
+
         ConnectionRegistry registry = new ConnectionRegistry();
         BlockingQueue<byte[]> rawQueue = new LinkedBlockingQueue<>(100);
         BlockingQueue<Message> decryptedQueue = new LinkedBlockingQueue<>(100);
@@ -45,7 +60,7 @@ class NetworkTest {
         serverExecutor.submit(new ReceiverTCP(TCP_PORT, rawQueue, registry, serverExecutor)::receiveMessage);
         serverExecutor.submit(new ReceiverUDP(UDP_PORT, rawQueue, registry)::receiveMessage);
         serverExecutor.submit(new Decryptor(rawQueue, decryptedQueue, encryptionService, PASSWORD)::decrypt);
-        serverExecutor.submit(new Processor(decryptedQueue, responseQueue, storage)::processMessages);
+        serverExecutor.submit(new Processor(decryptedQueue, responseQueue, itemService)::processMessages);
         serverExecutor.submit(new Encryptor(responseQueue, outgoingQueue, encryptionService, PASSWORD)::encrypt);
         serverExecutor.submit(new NetworkSender(outgoingQueue, registry)::sendMessage);
     }
@@ -63,13 +78,12 @@ class NetworkTest {
         StoreClientTCP client = new StoreClientTCP(SERVER_IP, TCP_PORT, encryptionService, PASSWORD);
         
         // add 50 of item 1
-        Message request = new Message((byte) 1, 1001L, 3, 1, "1:50");
+        Message request = new Message((byte) 1, 1001L, 3, 1, "{\"id\":1, \"amount\":50}");
         Message response = client.sendRequest(request, 3);
         
         Assertions.assertThat(response).isNotNull();
         Assertions.assertThat(response.commandType()).isZero();
-        Assertions.assertThat(response.messageString()).contains("150");
-        Assertions.assertThat(storage.get(1).get()).isEqualTo(150);
+        Assertions.assertThat(itemRepository.findById(1).getQuantity()).isEqualTo(150);
         
         client.closeConnection();
     }
@@ -79,13 +93,12 @@ class NetworkTest {
         StoreClientUDP client = new StoreClientUDP(SERVER_IP, UDP_PORT, encryptionService, PASSWORD);
         
         // reduce 20 of item 2
-        Message request = new Message((byte) 2, 2001L, 2, 2, "2:20");
+        Message request = new Message((byte) 2, 2001L, 2, 2, "{\"id\":2, \"amount\":20}");
         Message response = client.sendRequest(request, 3);
         
         Assertions.assertThat(response).isNotNull();
         Assertions.assertThat(response.commandType()).isZero();
-        Assertions.assertThat(response.messageString()).contains("480");
-        Assertions.assertThat(storage.get(2).get()).isEqualTo(480);
+        Assertions.assertThat(itemRepository.findById(2).getQuantity()).isEqualTo(480);
     }
 
     @Test
@@ -130,7 +143,7 @@ class NetworkTest {
                 try {
                     StoreClientTCP tcpClient = new StoreClientTCP(SERVER_IP, TCP_PORT, encryptionService, PASSWORD);
                     for (int j = 0; j < requestsPerClient; j++) {
-                        Message request = new Message((byte) clientAppNumber, messageId.getAndIncrement(), 3, 1, "1:10");
+                        Message request = new Message((byte) clientAppNumber, messageId.getAndIncrement(), 3, 1, "{\"id\":1, \"amount\":10}");
                         tcpClient.sendRequest(request, 3);
                     }
                     tcpClient.closeConnection();
@@ -148,7 +161,7 @@ class NetworkTest {
                 try {
                     StoreClientUDP udpClient = new StoreClientUDP(SERVER_IP, UDP_PORT, encryptionService, PASSWORD);
                     for (int j = 0; j < requestsPerClient; j++) {
-                        Message request = new Message((byte) clientAppNumber, messageId.getAndIncrement(), 2, 1, "1:5");
+                        Message request = new Message((byte) clientAppNumber, messageId.getAndIncrement(), 2, 1, "{\"id\":1, \"amount\":5}");
                         udpClient.sendRequest(request, 3);
                     }
                 } catch (Exception e) {
@@ -167,7 +180,7 @@ class NetworkTest {
         Assertions.assertThat(messageId.get()).isEqualTo(100);
 
         // 100 + (5 clients * 10 requests * 10) - (5 clients * 10 requests * 5) = 600 - 250 = 350
-        int finalStock = storage.get(1).get();
+        int finalStock = itemRepository.findById(1).getQuantity();
         System.out.println("Expected stock: 350, Actual stock: " + finalStock);
         Assertions.assertThat(finalStock).isEqualTo(350);
         clientExecutor.shutdownNow();

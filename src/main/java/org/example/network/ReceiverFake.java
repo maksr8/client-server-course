@@ -1,7 +1,7 @@
 package org.example.network;
 
 import org.example.crypto.EncryptionService;
-import org.example.crypto.Message;
+import org.example.dto.Message;
 
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
@@ -47,7 +47,7 @@ public class ReceiverFake implements Receiver {
             payload = String.valueOf(productId);
         } else {
             int amount = random.nextInt(10) + 1;
-            payload = productId + ":" + amount;
+            payload = "{\"id\":" + productId + ", \"amount\":" + amount + "}";
         }
 
         Message message = new Message((byte) 0x01, messageIDCounter++, commandType, userId, payload);
