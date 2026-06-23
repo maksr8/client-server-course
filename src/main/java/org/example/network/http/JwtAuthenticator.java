@@ -28,6 +28,6 @@ public class JwtAuthenticator extends Authenticator {
             return new Failure(401);
         }
 
-        return new Success(new HttpPrincipal(username, "jwt-realm"));
+        return new Success(new HttpPrincipal(username, "user"));
     }
 }
