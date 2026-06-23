@@ -34,9 +34,15 @@ public class ProductHandler implements HttpHandler {
         } catch (IllegalArgumentException e) {
             sendResponse(exchange, 400, "{\"error\":\"" + e.getMessage() + "\"}");
         } catch (RuntimeException e) {
-            if (e.getMessage().contains("not found")) {
+            String fullError = e.getMessage();
+            if (e.getCause() != null) {
+                fullError += " " + e.getCause().getMessage();
+            }
+            fullError = fullError.toLowerCase();
+
+            if (fullError.contains("not found")) {
                 sendResponse(exchange, 404, "{\"error\":\"" + e.getMessage() + "\"}");
-            } else if (e.getMessage().contains("duplicate") || e.getMessage().contains("unique")) {
+            } else if (fullError.contains("duplicate") || fullError.contains("unique")) {
                 sendResponse(exchange, 409, "{\"error\":\"Item name already exists\"}");
             } else {
                 sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");

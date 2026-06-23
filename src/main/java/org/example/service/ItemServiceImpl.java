@@ -66,6 +66,15 @@ public class ItemServiceImpl implements ItemService {
         if (item.getId() == null) {
             throw new IllegalArgumentException("Cannot update item without an ID.");
         }
+        if (item.getPrice() == null || item.getPrice() < 0) {
+            throw new IllegalArgumentException("Price cannot be negative or null.");
+        }
+        if (item.getQuantity() == null || item.getQuantity() < 0) {
+            throw new IllegalArgumentException("Quantity cannot be negative or null.");
+        }
+        if (item.getName() == null || item.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Item name cannot be empty.");
+        }
         
         boolean success = itemRepository.update(item);
         if (!success) {

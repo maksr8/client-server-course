@@ -43,7 +43,7 @@ public class ItemRepository {
             stmt.setInt(3, amount);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while reducing stock", e);
+            throw new RuntimeException("Database error while reducing stock: " + e.getMessage(), e);
         }
     }
 
@@ -55,7 +55,7 @@ public class ItemRepository {
             stmt.setInt(2, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while adding stock", e);
+            throw new RuntimeException("Database error while adding stock: " + e.getMessage(), e);
         }
     }
 
@@ -76,7 +76,7 @@ public class ItemRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while saving item", e);
+            throw new RuntimeException("Database error while saving item: " + e.getMessage(), e);
         }
     }
 
@@ -91,7 +91,7 @@ public class ItemRepository {
             stmt.setInt(5, item.getId());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while updating item", e);
+            throw new RuntimeException("Database error while updating item: " + e.getMessage(), e);
         }
     }
 
@@ -102,7 +102,7 @@ public class ItemRepository {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while deleting item", e);
+            throw new RuntimeException("Database error while deleting item: " + e.getMessage(), e);
         }
     }
 
@@ -142,7 +142,7 @@ public class ItemRepository {
                 return results;
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while searching items", e);
+            throw new RuntimeException("Database error while searching items: " + e.getMessage(), e);
         }
     }
 
