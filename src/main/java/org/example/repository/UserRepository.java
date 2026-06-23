@@ -14,6 +14,19 @@ public class UserRepository {
         this.connectionProvider = connectionProvider;
     }
 
+    public void createUser(User user) {
+        String sql = "INSERT INTO users (username, password_hash) VALUES (?, ?) ON CONFLICT (username) DO NOTHING";
+        try (Connection conn = connectionProvider.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, user.username());
+            stmt.setString(2, user.passwordHash());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Database error while creating user: " + e.getMessage(), e);
+        }
+    }
+
     public User findByUsername(String username) {
         String sql = "SELECT id, username, password_hash FROM users WHERE username = ?";
         try (Connection conn = connectionProvider.getConnection();

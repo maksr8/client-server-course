@@ -15,6 +15,16 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
+    public void registerUser(String username, String rawPassword) {
+        try {
+            byte[] hashedBytes = CipherService.generateSHA256FromPassword(rawPassword);
+            String passwordHash = HexFormat.of().formatHex(hashedBytes);
+            userRepository.createUser(new User(null, username, passwordHash));
+        } catch (Exception e) {
+            throw new RuntimeException("Error registering user", e);
+        }
+    }
+
     public String login(String username, String password) {
         User user = userRepository.findByUsername(username);
         
